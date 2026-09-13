@@ -14,12 +14,23 @@
     --radius: 4px;
 }
 
+html {
+    height: 100%;
+}
+
 body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
     font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     color: var(--ink);
     background: url("/static/img/bg.png") no-repeat center center;
     background-size: cover;
     line-height: 1.6;
+}
+
+main {
+    flex: 1;
 }
 
 h1, .brand {
@@ -270,7 +281,7 @@ h1, .brand {
 
 .experience-card {
     padding: 1.25rem;
-    background-color: #fbb3bb;
+    background-color: var(--paper);
     border: 1px solid #9b3160;
     border-radius: var(--radius);
 }
@@ -306,7 +317,7 @@ h1, .brand {
 
 .skill-card {
     padding: 1.25rem;
-    background-color: #fbb3bb;
+    background-color: var(--paper);
     border: 1px solid #9b3160;
     border-radius: var(--radius);
 }
