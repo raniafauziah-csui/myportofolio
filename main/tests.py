@@ -2,7 +2,7 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from main.models import Experience
+from main.models import Experience, Skill
 
 
 class MainTest(TestCase):
@@ -56,3 +56,32 @@ class MainTest(TestCase):
         self.assertFalse(self.experience.is_ongoing)
         self.assertContains(response, "Selesai")
         self.assertNotContains(response, "Sedang berlangsung")
+
+
+class SkillTest(TestCase):
+    def setUp(self):
+        self.skill = Skill.objects.create(
+            name="Figma",
+            description="Membuat desain poster menggunakan Figma.",
+            category="design",
+        )
+
+    def test_skill_url_is_accessible(self):
+        response = self.client.get(reverse("main:show_skill"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "skill.html")
+
+    def test_skill_data_appears_on_page(self):
+        response = self.client.get(reverse("main:show_skill"))
+
+        self.assertContains(response, self.skill.name)
+        self.assertContains(response, self.skill.description)
+        self.assertContains(response, "Programming")
+        self.assertContains(response, f'href="{reverse("main:show_main")}"')
+
+    def test_empty_skill_page(self):
+        Skill.objects.all().delete()
+        response = self.client.get(reverse("main:show_skill"))
+
+        self.assertContains(response, "Belum ada skill yang ditambahkan.")
