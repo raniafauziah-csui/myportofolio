@@ -77,7 +77,7 @@ class SkillTest(TestCase):
 
         self.assertContains(response, self.skill.name)
         self.assertContains(response, self.skill.description)
-        self.assertContains(response, "Programming")
+        self.assertContains(response, self.skill.get_category_display())
         self.assertContains(response, f'href="{reverse("main:show_main")}"')
 
     def test_empty_skill_page(self):
