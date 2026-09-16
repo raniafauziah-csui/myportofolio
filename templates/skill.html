@@ -1,57 +1,55 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Experience - {{ name }}</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/css/style.css">
-</head>
-<body>
-    <header class="site-header">
-        <div class="container">
-            <a href="{% url 'main:show_main' %}" class="brand">{{ name }}</a>
-            <nav>
-                <a href="{% url 'main:show_main' %}">Profile</a>
-                <a href="{% url 'main:show_experience' %}">Experience</a>
-                <a href="{% url 'main:show_skill' %}">Skill</a>
-            </nav>
-        </div>
-    </header>
-
+{% extends "base.html" %}
+{% block meta %}
+    <title>Skill - {{ name }}</title>
+{% endblock meta %}
+{% block content %}
     <main>
-    <section class="experience-section" id="experience">
-        <div class="container">
-            <p class="section-kicker">Kemampuan yang saya miliki sejauh ini</p>
-            <h1>Skill</h1>
+        <section class="experience-section" id="skill">
+            <div class="container">
+                <p class="section-kicker">Kemampuan yang saya miliki sejauh ini</p>
+                <h1>Skill</h1>
 
-            <div class="skill-grid">
-                {% for skill in skill_list %}
-                    <article class="skill-card">
-                        <span class="skill-category">
-                            {{ skill.get_category_display }}
-                        </span>
-                        <h2>{{ skill.name }}</h2>
-                        <p class="skill-description">
-                            {{ skill.description }}
-                        </p>
-                    </article>
-                {% empty %}
-                    <p class="empty-state">
-                        Belum ada skill yang ditambahkan.
-                    </p>
-                {% endfor %}
+                <div class="section-toolbar">
+                    <a href="{% url 'main:create_skill' %}" class="button">
+                        <span aria-hidden="true">+</span> Tambah Skill
+                    </a>
+                    <form method="get"
+                          action="{% url 'main:show_skill' %}"
+                          class="skill-search">
+                        <input type="search"
+                               name="name"
+                               value="{{ name_query }}"
+                               placeholder="Cari berdasarkan nama skill"
+                               class="skill-search__input"
+                               aria-label="Cari berdasarkan nama skill">
+                        <button type="submit" class="button">Cari</button>
+                    </form>
+                </div>
+
+                <div class="experience-grid skill-grid">
+                    {% for skill in skill_list %}
+                        <article class="skill-card">
+                            {% if skill.icon_url %}
+                                <img src="{{ skill.icon_url }}"
+                                     alt="Ikon {{ skill.name }}"
+                                     class="skill-image">
+                            {% endif %}
+                            <h2>{{ skill.name }}</h2>
+                            <span class="experience-category">{{ skill.get_category_display }}</span>
+                            <p class="experience-description">{{ skill.description }}</p>
+                            <div class="skill-card-actions">
+                                {% include "components/skill_delete_modal.html" with skill=skill %}
+                            </div>
+                        </article>
+                    {% empty %}
+                        {% if name_query %}
+                            <p class="empty-state">Tidak ada skill dengan nama tersebut.</p>
+                        {% else %}
+                            <p class="empty-state">Belum ada skill yang ditambahkan.</p>
+                        {% endif %}
+                    {% endfor %}
+                </div>
             </div>
-        </div>
-    </section>
+        </section>
     </main>
-
-    <footer class="site-footer">
-        <div class="container">
-            <p>&copy; 2026 {{ name }}. Fakultas Ilmu Komputer, Universitas Indonesia.</p>
-        </div>
-    </footer>
-</body>
-</html>
+{% endblock content %}
