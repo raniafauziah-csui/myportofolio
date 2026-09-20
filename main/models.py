@@ -59,6 +59,7 @@ class Achievement(models.Model):
     category = models.CharField(max_length=50, choices=ACHIEVEMENT_CHOICES, default='hackathon')
     description = models.TextField()
     position = models.CharField(max_length=255)
+    icon_url = models.URLField(blank=True, null=True)
     timestamp_achieved = models.PositiveIntegerField()
     timestamp_created = models.DateField(auto_now_add = True)
 

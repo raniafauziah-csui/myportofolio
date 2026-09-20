@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block meta %}
+    <title>Achievement - {{ name }}</title>
+{% endblock meta %}
+{% block content %}
+    <main>
+        <section class="page-section" id="skill">
+            <div class="container">
+                <p class="section-kicker">Prestasi saya sejauh ini</p>
+                <h1>Achievement</h1>
+
+                <div class="section-toolbar">
+                    <a href="{% url 'main:create_achievement' %}" class="button">
+                        <span aria-hidden="true">+</span> Tambah Prestasi
+                    </a>
+                    <form method="get"
+                          action="{% url 'main:show_achievement' %}"
+                          class="achievement-search">
+                        <input type="search"
+                               name="name"
+                               value="{{ name_query }}"
+                               placeholder="Cari berdasarkan nama prestasi"
+                               class="achievement-search__input"
+                               aria-label="Cari berdasarkan nama prestasi">
+                        <button type="submit" class="button">Cari</button>
+                    </form>
+                </div>
+
+                <div class="experience-grid skill-grid">
+                    {% for achievement in achievement_list %}
+                        <article class="achievement-card">
+                            {% if achievement.icon_url %}
+                                <img src="{{ achievement.icon_url }}"
+                                     alt="Ikon {{ achievement.name }}"
+                                     class="skill-image">
+                            {% endif %}
+                            <h2>{{ achievement.name }}</h2>
+                            <span class="experience-category">{{ achievement.get_category_display }}</span>
+                            <p class="experience-description">{{ achievement.description }}</p>
+                            {% if achievement.position %}
+                                <p class="achievement-position">{{ achievement.position }}</p>
+                            {% endif %}
+                            <p class="achievement-year">{{ achievement.timestamp_achieved }}</p>
+                            <div class="achievement-card-actions">
+                                {% include "components/achievement_delete_modal.html" with achievement=achievement %}
+                            </div>
+                        </article>
+                    {% empty %}
+                        {% if name_query %}
+                            <p class="empty-state">Tidak ada prestasi dengan nama tersebut.</p>
+                        {% else %}
+                            <p class="empty-state">Belum ada prestasi yang ditambahkan.</p>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+        </section>
+    </main>
+{% endblock content %}

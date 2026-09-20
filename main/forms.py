@@ -52,6 +52,7 @@ class AchievementForm(ModelForm):
             "category",
             "description",
             "position",
+            "icon_url",
             "timestamp_achieved",
         ]
 
@@ -60,6 +61,7 @@ class AchievementForm(ModelForm):
             "category": "Kategori Lomba",
             "description": "Deskripsi Lomba",
             "position": "Posisi/Urutan Juara",
+            "icon_url": "Tautan Gambar",
             "timestamp_achieved": "Tahun"
         }
 
@@ -88,6 +90,12 @@ class AchievementForm(ModelForm):
                 attrs={
                     "placeholder": "Juara berapa?",
                     "maxlength": 255,
+                }
+            ),
+
+            "icon_url": URLInput(
+                attrs={
+                    "placeholder": "https://...",
                 }
             ),
 

@@ -3,8 +3,8 @@ from django.core import serializers
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 
-from main.forms import SkillForm
-from main.models import Experience, Skill
+from main.forms import SkillForm, AchievementForm
+from main.models import Experience, Skill, Achievement
 
 # Create your views here.
 def show_main(request):
@@ -76,3 +76,48 @@ def delete_skill(request, skill_id):
         return redirect("main:show_skill")
 
     return redirect("main:show_skill")
+
+def show_achievement(request):
+    achievements = Achievement.objects.all()
+    name_query = request.GET.get("name", "").strip()
+    if name_query:
+        achievements = achievements.filter(name__icontains=name_query)
+
+    context = {
+        "name": "Rania Fauziah Nur Wahyudi",
+        "achievement_list": achievements,
+        "name_query": name_query
+    }
+    return render(request, "achievement.html", context)
+
+def create_achievement(request):
+    form = AchievementForm(request.POST or None)
+
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, "Pencapaian baru berhasil ditambahkan!")
+        return redirect("main:show_achievement")
+
+    context = {
+        "name": "Rania Fauziah Nur Wahyudi",
+        "form": form,
+    }
+    return render(request, "achievements_form.html", context)
+
+def get_achievements_json(request):
+    achievements = Achievement.objects.all()
+    name_query = request.GET.get("name", "").strip()
+    if name_query:
+        achievements = achievements.filter(name__icontains=name_query)
+
+    data = serializers.serialize("json", achievements)
+    return HttpResponse(data, content_type="application/json")
+
+def delete_achievement(request, achievement_id):
+    achievement = get_object_or_404(Achievement, pk=achievement_id)
+
+    if request.method == "POST":
+        achievement.delete()
+        messages.success(request, "Pencapaian berhasil dihapus!")
+        return redirect("main:show_achievement")
+    return redirect("main:show_achievement")
