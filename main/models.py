@@ -44,3 +44,23 @@ class Skill(models.Model):
 
     def __str__(self):
         return self.name
+
+class Achievement(models.Model):
+    ACHIEVEMENT_CHOICES = [
+        ('kti', 'Karya Tulis Ilmiah'),
+        ('hackathon', 'Hackathon'),
+        ('poster', 'Poster'),
+        ('business case', 'Business Case'),
+        ('olimpiade', 'Olimpiade'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=255)
+    category = models.CharField(max_length=50, choices=ACHIEVEMENT_CHOICES, default='hackathon')
+    description = models.TextField()
+    position = models.CharField(max_length=255)
+    timestamp_achieved = models.PositiveIntegerField()
+    timestamp_created = models.DateField(auto_now_add = True)
+
+    def __str__(self):
+        return self.name

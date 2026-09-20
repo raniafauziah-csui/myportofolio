@@ -1,6 +1,6 @@
-from django.forms import ModelForm, TextInput, Textarea, URLInput
+from django.forms import ModelForm, TextInput, Textarea, URLInput, NumberInput
 
-from main.models import Skill
+from main.models import Skill, Achievement
 
 class SkillForm(ModelForm):
     class Meta:
@@ -42,4 +42,61 @@ class SkillForm(ModelForm):
                     "placeholder": "https://github.com/kakBurhan/burhanquestv4",
                 }
             ),
+        }
+
+class AchievementForm(ModelForm):
+    class Meta:
+        model = Achievement
+        fields = [
+            "name",
+            "category",
+            "description",
+            "position",
+            "timestamp_achieved",
+        ]
+
+        labels = {
+            "name": "Nama Lomba",
+            "category": "Kategori Lomba",
+            "description": "Deskripsi Lomba",
+            "position": "Posisi/Urutan Juara",
+            "timestamp_achieved": "Tahun"
+        }
+
+        widgets = {
+            "name": TextInput(
+                attrs={
+                    "placeholder": "Hackathon UI",
+                    "maxlength": 255,
+                }
+            ),
+
+            "category": TextInput(
+                attrs={
+                    "placeholder": "Hackathon",
+                }
+            ),
+
+            "description": Textarea(
+                attrs={
+                    "placeholder": "Ceritakan karyamu yang memenangkan lomba ini",
+                    "rows": 3,
+                }
+            ),
+
+            "position": TextInput(
+                attrs={
+                    "placeholder": "Juara berapa?",
+                    "maxlength": 255,
+                }
+            ),
+
+            "timestamp_achieved": NumberInput(
+                attrs={
+                    "placeholder": "2026",
+                    "min": 2000,
+                    "max": 2100,
+
+                }
+            )
         }
