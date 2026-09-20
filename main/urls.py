@@ -7,10 +7,12 @@ from main.views import (
     create_skill,
     get_skills_json,
     delete_skill,
+    edit_skill,
     show_achievement,
     create_achievement,
     get_achievements_json,
     delete_achievement,
+    edit_achievement,
 )
 
 app_name = "main"
@@ -26,4 +28,6 @@ urlpatterns = [
     path("achievement/add/", create_achievement, name="create_achievement"),
     path("api/achievements/", get_achievements_json, name="get_achievements_json"),
     path("achievement/<uuid:achievement_id>/delete/", delete_achievement, name="delete_achievement"),
+    path("skill/<uuid:skill_id>/edit/", edit_skill, name="edit_skill"),
+    path("achievement/<uuid:achievement_id>/edit/", edit_achievement, name="edit_achievement"),
 ]

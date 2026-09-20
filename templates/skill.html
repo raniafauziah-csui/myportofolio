@@ -38,6 +38,7 @@
                             <span class="experience-category">{{ skill.get_category_display }}</span>
                             <p class="experience-description">{{ skill.description }}</p>
                             <div class="skill-card-actions">
+                                <a href="{% url 'main:edit_skill' skill.id %}" class="button">Edit</a>
                                 {% include "components/skill_delete_modal.html" with skill=skill %}
                             </div>
                         </article>

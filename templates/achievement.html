@@ -42,6 +42,7 @@
                             {% endif %}
                             <p class="achievement-year">{{ achievement.timestamp_achieved }}</p>
                             <div class="achievement-card-actions">
+                                <a href="{% url 'main:edit_achievement' achievement.id %}" class="button">Edit</a>
                                 {% include "components/achievement_delete_modal.html" with achievement=achievement %}
                             </div>
                         </article>
