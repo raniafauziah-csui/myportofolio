@@ -10,7 +10,7 @@
                 <h1>Achievement</h1>
 
                 <div class="section-toolbar">
-                    {% if user.is_superuser %}
+                    {% if perms.main.add_achievement %}
                         <a href="{% url 'main:create_achievement' %}" class="button">
                             <span aria-hidden="true">+</span> Tambah Prestasi
                         </a>
@@ -47,8 +47,10 @@
                                 {% if user.is_authenticated %}
                                     {% include "components/achievement_star.html" with achievement=achievement %}
                                 {% endif %}
-                                {% if user.is_superuser %}
+                                {% if perms.main.change_achievement %}
                                     <a href="{% url 'main:edit_achievement' achievement.id %}" class="button">Edit</a>
+                                {% endif %}
+                                {% if perms.main.delete_achievement %}
                                     {% include "components/achievement_delete_modal.html" with achievement=achievement %}
                                 {% endif %}
                             </div>

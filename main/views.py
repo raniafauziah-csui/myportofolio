@@ -1,9 +1,10 @@
 import datetime
+from functools import wraps
 from django.contrib import messages
 from django.contrib.auth import login, logout
 from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
 from django.contrib.auth.decorators import login_required  
-from django.core.exceptions import PermissionDenied        
+from django.core.exceptions import PermissionDenied
 from django.core import serializers
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -11,6 +12,18 @@ from django.urls import reverse
 
 from main.forms import SkillForm, AchievementForm
 from main.models import Experience, Skill, Achievement
+
+def editor_required(perm):
+    def decorator(view_func):
+        @wraps(view_func)
+        def _wrapped_view(request, *args, **kwargs):
+            if not request.user.is_authenticated:
+                return redirect("/login/")
+            if not request.user.has_perm(perm):
+                raise PermissionDenied
+            return view_func(request, *args, **kwargs)
+        return _wrapped_view
+    return decorator
 
 # Create your views here.
 def show_main(request):
@@ -49,11 +62,8 @@ def show_skill(request):
     }
     return render(request, "skill.html", context)
 
-@login_required(login_url="/login/")
+@editor_required("main.add_skill")
 def create_skill(request):
-    if not request.user.is_superuser:
-        raise PermissionDenied
-    
     form = SkillForm(request.POST or None)
 
     if request.method == "POST" and form.is_valid():
@@ -78,10 +88,8 @@ def get_skills_json(request):
     data = serializers.serialize("json", skills,  use_natural_foreign_keys=True)
     return HttpResponse(data, content_type="application/json")
 
-@login_required(login_url="/login/")
+@editor_required("main.delete_skill")
 def delete_skill(request, skill_id):
-    if not request.user.is_superuser:
-        raise PermissionDenied
     skill = get_object_or_404(Skill, pk=skill_id)
 
     if request.method == "POST":
@@ -91,10 +99,8 @@ def delete_skill(request, skill_id):
 
     return redirect("main:show_skill")
 
-@login_required(login_url="/login/")
+@editor_required("main.change_skill")
 def edit_skill(request, skill_id):
-    if not request.user.is_superuser:
-        raise PermissionDenied
     skill = get_object_or_404(Skill, pk=skill_id)
     form = SkillForm(request.POST or None, instance=skill)
 
@@ -124,10 +130,8 @@ def show_achievement(request):
     }
     return render(request, "achievement.html", context)
 
-@login_required(login_url="/login/")
+@editor_required("main.add_achievement")
 def create_achievement(request):
-    if not request.user.is_superuser:
-        raise PermissionDenied
     form = AchievementForm(request.POST or None)
 
     if request.method == "POST" and form.is_valid():
@@ -151,10 +155,8 @@ def get_achievements_json(request):
     data = serializers.serialize("json", achievements,  use_natural_foreign_keys=True)
     return HttpResponse(data, content_type="application/json")
 
-@login_required(login_url="/login/")
+@editor_required("main.delete_achievement")
 def delete_achievement(request, achievement_id):
-    if not request.user.is_superuser:
-        raise PermissionDenied
     achievement = get_object_or_404(Achievement, pk=achievement_id)
 
     if request.method == "POST":
@@ -163,10 +165,8 @@ def delete_achievement(request, achievement_id):
         return redirect("main:show_achievement")
     return redirect("main:show_achievement")
 
-@login_required(login_url="/login/")
+@editor_required("main.change_achievement")
 def edit_achievement(request, achievement_id):
-    if not request.user.is_superuser:
-        raise PermissionDenied
     achievement = get_object_or_404(Achievement, pk=achievement_id)
     form = AchievementForm(request.POST or None, instance=achievement)
 
