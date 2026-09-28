@@ -25,6 +25,11 @@
                             {% else %}
                                 <p class="experience-status">Selesai</p>
                             {% endif %}
+                            {% if user.is_authenticated %}
+                                <div class="experience-card-actions">
+                                    {% include "components/experience_star.html" with experience=experience %}
+                                </div>
+                            {% endif %}
                         </article>
                     {% empty %}
                         <p class="empty-state">

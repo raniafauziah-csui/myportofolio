@@ -10,9 +10,11 @@
                 <h1>Achievement</h1>
 
                 <div class="section-toolbar">
-                    <a href="{% url 'main:create_achievement' %}" class="button">
-                        <span aria-hidden="true">+</span> Tambah Prestasi
-                    </a>
+                    {% if user.is_superuser %}
+                        <a href="{% url 'main:create_achievement' %}" class="button">
+                            <span aria-hidden="true">+</span> Tambah Prestasi
+                        </a>
+                    {% endif %}
                     <form method="get"
                           action="{% url 'main:show_achievement' %}"
                           class="achievement-search">
@@ -42,8 +44,13 @@
                             {% endif %}
                             <p class="achievement-year">{{ achievement.timestamp_achieved }}</p>
                             <div class="achievement-card-actions">
-                                <a href="{% url 'main:edit_achievement' achievement.id %}" class="button">Edit</a>
-                                {% include "components/achievement_delete_modal.html" with achievement=achievement %}
+                                {% if user.is_authenticated %}
+                                    {% include "components/achievement_star.html" with achievement=achievement %}
+                                {% endif %}
+                                {% if user.is_superuser %}
+                                    <a href="{% url 'main:edit_achievement' achievement.id %}" class="button">Edit</a>
+                                    {% include "components/achievement_delete_modal.html" with achievement=achievement %}
+                                {% endif %}
                             </div>
                         </article>
                     {% empty %}

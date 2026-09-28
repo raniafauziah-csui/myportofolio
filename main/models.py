@@ -1,4 +1,6 @@
 import uuid
+
+from django.contrib.auth.models import User
 from django.db import models
 
 # Create your models here.
@@ -19,6 +21,9 @@ class Experience(models.Model):
     thumbnail = models.URLField(blank=True, null=True)
     started_at = models.DateTimeField(auto_now_add=True)
     ended_at = models.DateTimeField(blank=True, null=True)
+    starred_by = models.ManyToManyField(
+        User, related_name="starred_experiences", blank=True
+    )
     def __str__(self):
         return self.title
     
@@ -41,6 +46,9 @@ class Skill(models.Model):
     category = models.CharField(max_length=20, choices=SKILL_CHOICES, default='design')
     description = models.TextField()
     icon_url = models.URLField(blank=True, null=True)
+    starred_by = models.ManyToManyField(
+        User, related_name="starred_skills", blank=True
+    )
 
     def __str__(self):
         return self.name
@@ -62,6 +70,9 @@ class Achievement(models.Model):
     icon_url = models.URLField(blank=True, null=True)
     timestamp_achieved = models.PositiveIntegerField()
     timestamp_created = models.DateField(auto_now_add = True)
+    starred_by = models.ManyToManyField(
+        User, related_name="starred_achievements", blank=True
+    )
 
     def __str__(self):
         return self.name

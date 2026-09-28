@@ -10,9 +10,11 @@
                 <h1>Skill</h1>
 
                 <div class="section-toolbar">
-                    <a href="{% url 'main:create_skill' %}" class="button">
-                        <span aria-hidden="true">+</span> Tambah Skill
-                    </a>
+                    {% if user.is_superuser %}
+                        <a href="{% url 'main:create_skill' %}" class="button">
+                            <span aria-hidden="true">+</span> Tambah Skill
+                        </a>
+                    {% endif %} 
                     <form method="get"
                           action="{% url 'main:show_skill' %}"
                           class="skill-search">
@@ -38,8 +40,13 @@
                             <span class="experience-category">{{ skill.get_category_display }}</span>
                             <p class="experience-description">{{ skill.description }}</p>
                             <div class="skill-card-actions">
-                                <a href="{% url 'main:edit_skill' skill.id %}" class="button">Edit</a>
-                                {% include "components/skill_delete_modal.html" with skill=skill %}
+                                {% if user.is_authenticated %}
+                                    {% include "components/skill_star.html" with skill=skill %}
+                                {% endif %}
+                                {% if user.is_superuser %}
+                                    <a href="{% url 'main:edit_skill' skill.id %}" class="button">Edit</a>
+                                    {% include "components/skill_delete_modal.html" with skill=skill %}
+                                {% endif %}
                             </div>
                         </article>
                     {% empty %}
