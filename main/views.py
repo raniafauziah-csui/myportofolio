@@ -85,7 +85,12 @@ def get_skills_json(request):
     if name_query:
         skills = skills.filter(name__icontains=name_query)
 
-    data = serializers.serialize("json", skills,  use_natural_foreign_keys=True)
+    data = serializers.serialize(
+        "json",
+        skills,
+        use_natural_foreign_keys=True,
+        fields=["name", "category", "description", "icon_url"],
+    )
     return HttpResponse(data, content_type="application/json")
 
 @editor_required("main.delete_skill")
@@ -152,7 +157,19 @@ def get_achievements_json(request):
     if name_query:
         achievements = achievements.filter(name__icontains=name_query)
 
-    data = serializers.serialize("json", achievements,  use_natural_foreign_keys=True)
+    data = serializers.serialize(
+        "json",
+        achievements,
+        use_natural_foreign_keys=True,
+        fields=[
+            "name",
+            "category",
+            "description",
+            "position",
+            "icon_url",
+            "timestamp_achieved",
+        ],
+    )
     return HttpResponse(data, content_type="application/json")
 
 @editor_required("main.delete_achievement")
