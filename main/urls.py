@@ -1,6 +1,7 @@
 from django.urls import path
 
 from main.views import (
+    create_skill_ajax,
     show_main,
     show_experience,
     show_skill,
@@ -54,4 +55,5 @@ urlpatterns = [
         toggle_star_achievement,
         name="toggle_star_achievement",
     ),
+    path("skills/add-ajax/", create_skill_ajax, name="create_skill_ajax"),
 ]

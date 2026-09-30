@@ -12,26 +12,54 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 import os
+
+from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
-# Load environment variables from .env file
-load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Isi development. Variabel yang sudah ada di environment asli tidak ditimpa,
+# jadi platform hosting (Railway, Render, dst.) tetap bisa mengetik variabel.
+load_dotenv(BASE_DIR / ".env")
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-p9vrl_$vm1yrm+63bs+dv2x017^81c!q*$54(px2xdlw3$7^ha'
+def env_flag(name, default=False):
+    return str(os.getenv(name, default)).strip().lower() in {"true", "1", "yes", "on"}
+
+
+# PRODUCTION hanya dibaca dari environment, supaya tidak ada tebakan diam-diam.
+# Di server, set PRODUCTION=true sebagai environment variable, atau salin
+# .env.prod menjadi .env.
+PRODUCTION = env_flag("PRODUCTION")
+
+if PRODUCTION:
+    load_dotenv(BASE_DIR / ".env.prod", override=True)
+    missing = sorted({
+        name for name in ("SECRET_KEY", "DB_NAME", "DB_USER", "DB_PASSWORD", "DB_HOST")
+        if not os.getenv(name)
+    })
+    if missing:
+        raise ImproperlyConfigured(
+            "Production butuh environment variable berikut: " + ", ".join(missing)
+        )
+
+
+SECRET_KEY = os.getenv("SECRET_KEY") or (
+    "django-insecure-p9vrl_$vm1yrm+63bs+dv2x017^81c!q*$54(px2xdlw3$7^ha"
+)
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = not PRODUCTION
 
-ALLOWED_HOSTS = ["localhost", "127.0.0.1", "rania-fauziah-myportofolio.pws.cs.ui.ac.id"]
-
-PRODUCTION = os.getenv('PRODUCTION', 'False').lower() == 'true'
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in os.getenv(
+        "ALLOWED_HOSTS",
+        "localhost,127.0.0.1,rania-fauziah-myportofolio.pws.cs.ui.ac.id",
+    ).split(",")
+    if host.strip()
+]
 
 
 # Application definition
@@ -140,18 +168,33 @@ USE_I18N = True
 USE_TZ = True
 
 
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/5.2/howto/static-files/
-
-STATIC_URL = 'static/'
-
-STATICFILES_DIRS = [
-    BASE_DIR / 'static',
-]
-
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-# gunakan https:// untuk trailing urlnya
-CSRF_TRUSTED_ORIGINS = ["https://rania-fauziah-myportofolio.pws.cs.ui.ac.id"]
+
+
+# Origin yang diizinkan untuk POST CSRF. Pakai https:// pada production.
+CSRF_TRUSTED_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv(
+        "CSRF_TRUSTED_ORIGINS",
+        "https://rania-fauziah-myportofolio.pws.cs.ui.ac.id",
+    ).split(",")
+    if origin.strip()
+]
+
+
+# Pengaturan keamanan tambahan yang hanya aktif di produksi.
+if PRODUCTION:
+    # Deployment berada di belakang reverse proxy, jadi protokol harus dibaca
+    # dari header proxy. Tanpa ini SECURE_SSL_REDIRECT menyebabkan loop redirect.
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    SECURE_REFERRER_POLICY = "same-origin"

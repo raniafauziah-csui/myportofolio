@@ -5,10 +5,10 @@ from django.contrib.auth import login, logout
 from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
 from django.contrib.auth.decorators import login_required  
 from django.core.exceptions import PermissionDenied
-from django.core import serializers
-from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.http import JsonResponse
+from django.views.decorators.http import require_POST
 
 from main.forms import SkillForm, AchievementForm
 from main.models import Experience, Skill, Achievement
@@ -48,17 +48,13 @@ def show_experience(request):
     }
     return render(request, "experience.html", context)
 
-
 def show_skill(request):
-    skills = Skill.objects.all()
     name_query = request.GET.get("name", "").strip()
-    if name_query:
-        skills = skills.filter(name__icontains=name_query)
 
     context = {
         "name": "Rania Fauziah Nur Wahyudi",
-        "skill_list": skills,
         "name_query": name_query,
+        "form": SkillForm()
     }
     return render(request, "skill.html", context)
 
@@ -78,20 +74,50 @@ def create_skill(request):
     }
     return render(request, "skills_form.html", context)
 
+def build_json_payload(queryset, request, extra_fields):
+    """Bentuk payload JSON untuk endpoint API.
+
+    Semua endpoint memakai bentuk yang sama: ``pk`` berisi primary key dan
+    ``fields`` berisi data objek. Ditambahkan ``category_display`` supaya
+    klien tidak perlu memetakan label kategori secara manual, plus informasi
+    star yang bergantung pada user yang sedang login.
+    """
+    payload = []
+    for obj in queryset.prefetch_related("starred_by"):
+        starred_users = obj.starred_by.all()
+        is_starred = request.user in starred_users if request.user.is_authenticated else False
+
+        payload.append({
+            "pk": str(obj.pk),
+            "fields": {
+                **extra_fields(obj),
+                "category_display": obj.get_category_display(),
+                "star_count": starred_users.count(),
+                "is_starred": is_starred,
+                "starred_by_names": ", ".join(user.username for user in starred_users),
+            },
+        })
+
+    return JsonResponse(payload, safe=False)
+
 
 def get_skills_json(request):
-    skills = Skill.objects.all()
     name_query = request.GET.get("name", "").strip()
+    skills = Skill.objects.all()
+
     if name_query:
         skills = skills.filter(name__icontains=name_query)
 
-    data = serializers.serialize(
-        "json",
+    return build_json_payload(
         skills,
-        use_natural_foreign_keys=True,
-        fields=["name", "category", "description", "icon_url"],
+        request,
+        lambda skill: {
+            "name": skill.name,
+            "category": skill.category,
+            "description": skill.description,
+            "icon_url": skill.icon_url,
+        },
     )
-    return HttpResponse(data, content_type="application/json")
 
 @editor_required("main.delete_skill")
 def delete_skill(request, skill_id):
@@ -152,25 +178,24 @@ def create_achievement(request):
     return render(request, "achievements_form.html", context)
 
 def get_achievements_json(request):
-    achievements = Achievement.objects.all()
     name_query = request.GET.get("name", "").strip()
+    achievements = Achievement.objects.all()
+
     if name_query:
         achievements = achievements.filter(name__icontains=name_query)
 
-    data = serializers.serialize(
-        "json",
+    return build_json_payload(
         achievements,
-        use_natural_foreign_keys=True,
-        fields=[
-            "name",
-            "category",
-            "description",
-            "position",
-            "icon_url",
-            "timestamp_achieved",
-        ],
+        request,
+        lambda achievement: {
+            "name": achievement.name,
+            "category": achievement.category,
+            "description": achievement.description,
+            "position": achievement.position,
+            "icon_url": achievement.icon_url,
+            "timestamp_achieved": achievement.timestamp_achieved,
+        },
     )
-    return HttpResponse(data, content_type="application/json")
 
 @editor_required("main.delete_achievement")
 def delete_achievement(request, achievement_id):
@@ -274,3 +299,27 @@ def toggle_star_achievement(request, achievement_id):
             achievement.starred_by.add(request.user)
 
     return redirect("main:show_achievement")
+
+@require_POST
+def create_skill_ajax(request):
+    if not request.user.is_authenticated:
+        return JsonResponse(
+            {"message": "Silakan login terlebih dahulu."},
+            status=403,
+        )
+
+    if not request.user.has_perm("main.add_skill"):
+        return JsonResponse(
+            {"message": "Kamu tidak memiliki izin untuk menambahkan skill."},
+            status=403,
+        )
+
+    form = SkillForm(request.POST)
+    if form.is_valid():
+        skill = form.save()
+        return JsonResponse(
+            {"message": "Skill berhasil ditambahkan.", "pk": str(skill.id)},
+            status=201,
+        )
+
+    return JsonResponse({"errors": form.errors.get_json_data()}, status=400)

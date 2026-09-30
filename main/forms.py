@@ -1,4 +1,4 @@
-from django.forms import ModelForm, TextInput, Textarea, URLInput, NumberInput
+from django.forms import ModelForm, TextInput, Textarea, URLInput, NumberInput, Select
 
 from main.models import Skill, Achievement
 
@@ -26,11 +26,7 @@ class SkillForm(ModelForm):
                     "maxlength": 255,
                 }
             ),
-            "category": TextInput(
-                            attrs={
-                                "placeholder": "Programming, Graphic Design, Drawing/Painting",
-                            }
-                        ),
+            "category": Select(),
             "description": Textarea(
                 attrs={
                     "placeholder": "Ceritakan Proyekmu",
@@ -73,11 +69,7 @@ class AchievementForm(ModelForm):
                 }
             ),
 
-            "category": TextInput(
-                attrs={
-                    "placeholder": "Hackathon",
-                }
-            ),
+            "category": Select(),
 
             "description": Textarea(
                 attrs={
