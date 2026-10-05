@@ -10,7 +10,7 @@ from django.urls import reverse
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 
-from main.forms import SkillForm, AchievementForm
+from main.forms import SkillForm, AchievementForm, ExperienceForm
 from main.models import Experience, Skill, Achievement
 
 def editor_required(perm):
@@ -323,3 +323,51 @@ def create_skill_ajax(request):
         )
 
     return JsonResponse({"errors": form.errors.get_json_data()}, status=400)
+
+@editor_required("main.add_experience")
+def create_experience(request):
+    form = ExperienceForm(request.POST or None)
+
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, "Pengalaman baru berhasil ditambahkan!")
+        return redirect("main:show_experience")
+
+    context = {
+        "name": "Rania Fauziah Nur Wahyudi",
+        "form": form,
+        "form_action": reverse("main:create_experience"),
+        "is_edit": False,
+    }
+    return render(request, "experiences_form.html", context)
+
+
+@editor_required("main.change_experience")
+def edit_experience(request, experience_id):
+    experience = get_object_or_404(Experience, pk=experience_id)
+    form = ExperienceForm(request.POST or None, instance=experience)
+
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, "Pengalaman berhasil diperbarui!")
+        return redirect("main:show_experience")
+
+    context = {
+        "name": "Rania Fauziah Nur Wahyudi",
+        "form": form,
+        "form_action": reverse("main:edit_experience", args=[experience.id]),
+        "is_edit": True,
+    }
+    return render(request, "experiences_form.html", context)
+
+
+@editor_required("main.delete_experience")
+def delete_experience(request, experience_id):
+    experience = get_object_or_404(Experience, pk=experience_id)
+
+    if request.method == "POST":
+        experience.delete()
+        messages.success(request, "Pengalaman berhasil dihapus!")
+        return redirect("main:show_experience")
+
+    return redirect("main:show_experience")
