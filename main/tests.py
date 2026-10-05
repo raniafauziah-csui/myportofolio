@@ -14,7 +14,7 @@ from django.test import SimpleTestCase, TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from main.forms import AchievementForm, SkillForm
+from main.forms import AchievementForm, ExperienceForm, SkillForm
 from main.models import Achievement, Experience, Skill
 from portofolio import settings as portofolio_settings
 
@@ -194,6 +194,169 @@ class MainTest(TestCase):
         self.assertContains(response, 'id="experience-search-form"')
         self.assertContains(response, 'name="title"')
         self.assertContains(response, 'value="asisten"')
+
+
+class ExperienceXssSanitizationTest(TestCase):
+    """Perlindungan XSS sisi server memakai strip_tags di ModelForm."""
+
+    def setUp(self):
+        self.form = ExperienceForm
+
+    def test_script_tag_is_stripped_from_title(self):
+        form = self.form(
+            data={
+                "title": "<script>alert('xss')</script>Staff OH",
+                "description": "Deskripsi aman.",
+                "category": "part-time",
+                "started_at": "2025-01-15",
+            }
+        )
+
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertNotIn("<script>", form.cleaned_data["title"])
+        self.assertNotIn("</script>", form.cleaned_data["title"])
+        self.assertIn("Staff OH", form.cleaned_data["title"])
+
+    def test_html_tags_are_stripped_from_description(self):
+        form = self.form(
+            data={
+                "title": "Staff OH",
+                "description": "<b>Bold</b> dan <img src=x onerror=alert(1)>",
+                "category": "part-time",
+                "started_at": "2025-01-15",
+            }
+        )
+
+        self.assertTrue(form.is_valid(), form.errors)
+        cleaned = form.cleaned_data["description"]
+        self.assertNotIn("<b>", cleaned)
+        self.assertNotIn("<img", cleaned)
+        self.assertNotIn("onerror=", cleaned)
+        self.assertIn("Bold", cleaned)
+
+    def test_event_handler_attributes_are_stripped(self):
+        form = self.form(
+            data={
+                "title": '<div onmouseover="alert(1)">Staff</div>',
+                "description": "Halo",
+                "category": "part-time",
+                "started_at": "2025-01-15",
+            }
+        )
+
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertNotIn("onmouseover", form.cleaned_data["title"])
+        self.assertNotIn("<div", form.cleaned_data["title"])
+
+    def test_thumbnail_with_html_is_rejected_as_invalid_url(self):
+        # thumbnail adalah URLField: URLValidator menolak tag HTML lebih dulu,
+        # sebelum clean_thumbnail sempat dipanggil.
+        base = {
+            "title": "Staff OH",
+            "description": "Halo",
+            "category": "part-time",
+            "started_at": "2025-01-15",
+        }
+
+        form = self.form(data={**base, "thumbnail": "<b>https://contoh.com/a.png</b>"})
+        self.assertFalse(form.is_valid())
+        self.assertIn("thumbnail", form.errors)
+
+    def test_valid_thumbnail_passes_unchanged(self):
+        form = self.form(
+            data={
+                "title": "Staff OH",
+                "description": "Halo",
+                "category": "part-time",
+                "thumbnail": "https://contoh.com/gambar.png",
+                "started_at": "2025-01-15",
+            }
+        )
+
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertEqual(
+            form.cleaned_data["thumbnail"], "https://contoh.com/gambar.png"
+        )
+
+    def test_empty_thumbnail_stays_empty_not_none_string(self):
+        # Regression: strip_tags(None) pernah mengubah kolom kosong
+        # menjadi string "None" yang gagal validasi URL.
+        form = self.form(
+            data={
+                "title": "Staff OH",
+                "description": "Halo",
+                "category": "part-time",
+                "started_at": "2025-01-15",
+            }
+        )
+
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertFalse(form.cleaned_data["thumbnail"])
+        self.assertNotEqual(form.cleaned_data["thumbnail"], "None")
+
+    def test_input_with_only_tags_is_rejected(self):
+        # Nilai jadi kosong setelah strip, tapi validasi blank sudah terlewati,
+        # jadi harus ditolak oleh clean_<field>.
+        for field in ["title", "description"]:
+            payload = {
+                "title": "Staff OH",
+                "description": "Halo",
+                "category": "part-time",
+                "started_at": "2025-01-15",
+            }
+            payload[field] = "<b></b>"
+
+            with self.subTest(field=field):
+                form = self.form(data=payload)
+                self.assertFalse(form.is_valid())
+                self.assertIn(field, form.errors)
+                self.assertEqual(len(form.errors[field]), 1)
+
+    def test_legitimate_text_without_tags_still_passes(self):
+        form = self.form(
+            data={
+                "title": "Staff OH Fasilkom 2025",
+                "description": "Menjadi staff divisi Visual Design & UI.",
+                "category": "part-time",
+                "thumbnail": "https://contoh.com/gambar.png",
+                "started_at": "2025-01-15",
+                "ended_at": "2025-06-30",
+            }
+        )
+
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertEqual(form.cleaned_data["title"], "Staff OH Fasilkom 2025")
+        self.assertIn("Visual Design & UI", form.cleaned_data["description"])
+        self.assertEqual(
+            form.cleaned_data["thumbnail"], "https://contoh.com/gambar.png"
+        )
+
+    def test_ajax_endpoint_strips_html_before_saving(self):
+        editor = User.objects.create_user("xss_editor", password="test12345")
+        group = Group.objects.create(name="XSS Editor")
+        group.permissions.set(Permission.objects.filter(codename="add_experience"))
+        editor.groups.add(group)
+        self.client.force_login(editor)
+
+        response = self.client.post(
+            reverse("main:create_experience_ajax"),
+            {
+                "title": "<script>alert('xss')</script>Staff",
+                "description": "<b>Bold</b> deskripsi",
+                "category": "part-time",
+                "started_at": "2025-01-15",
+            },
+        )
+
+        self.assertEqual(response.status_code, 201)
+        saved = Experience.objects.get()
+        self.assertNotIn("<script>", saved.title)
+        self.assertNotIn("<b>", saved.description)
+
+        # Data yang dikirim ke client pun sudah bersih
+        payload = self.client.get(reverse("main:get_experiences_json")).json()
+        self.assertNotIn("<script>", payload[0]["fields"]["title"])
+        self.assertNotIn("<b>", payload[0]["fields"]["description"])
 
 
 class ExperienceCreateAjaxTest(TestCase):

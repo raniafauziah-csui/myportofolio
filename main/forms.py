@@ -1,4 +1,6 @@
+from django.core.exceptions import ValidationError
 from django.forms import ModelForm, TextInput, Textarea, URLInput, NumberInput, Select, DateInput
+from django.utils.html import strip_tags
 
 from main.models import Skill, Achievement, Experience
 
@@ -156,3 +158,40 @@ class ExperienceForm(ModelForm):
                 }
             )
         }
+
+    def _clean_text(self, field_name):
+        """Buang tag HTML dari input teks pengguna.
+
+        Perhatian: ``clean_<field>`` dipanggil SETELAH validasi field, jadi
+        nilai hasil ``strip_tags`` tidak otomatis dicek ulang. Input yang hanya
+        berisi tag (``<b></b>``) akan menjadi string kosong, dan string kosong
+        lolos ke database karena validasi ``blank`` sudah terlewati.
+        Karena itu hasilnya kita periksa sendiri di sini.
+        """
+        value = strip_tags(self.cleaned_data[field_name])
+        if not value.strip():
+            raise ValidationError(
+                "%s tidak boleh hanya berisi tag HTML." % self.Meta.labels[field_name],
+                code="html_only",
+            )
+        return value
+
+    def clean_title(self):
+        return self._clean_text("title")
+
+    def clean_description(self):
+        return self._clean_text("description")
+
+    def clean_thumbnail(self):
+        # Sabuk pengaman tambahan. Pada model sekarang thumbnail adalah
+        # URLField, jadi nilainya sudah ditolak lebih dulu oleh URLValidator
+        # sebelum method ini dipanggil -- defense in depth saja kalau someday
+        # field-nya diubah jadi CharField.
+        #
+        # Catatan: nilai kosong dari form adalah None, dan strip_tags(None)
+        # menghasilkan string "None" yang gagal validasi URL, jadi dikembalikan
+        # apa adanya.
+        value = self.cleaned_data["thumbnail"]
+        if not value:
+            return value
+        return strip_tags(value)
