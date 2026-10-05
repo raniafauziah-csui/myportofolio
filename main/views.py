@@ -44,7 +44,6 @@ def show_main(request):
 def show_experience(request):
     context = {
         "name": "Rania Fauziah Nur Wahyudi",
-        "experience_list": Experience.objects.all(),
     }
     return render(request, "experience.html", context)
 
@@ -371,3 +370,21 @@ def delete_experience(request, experience_id):
         return redirect("main:show_experience")
 
     return redirect("main:show_experience")
+
+
+def get_experiences_json(request):
+    experiences = Experience.objects.all()
+
+    return build_json_payload(
+        experiences,
+        request,
+        lambda experience: {
+            "title": experience.title,
+            "description": experience.description,
+            "category": experience.category,
+            "thumbnail": experience.thumbnail,
+            "started_at": experience.started_at,
+            "ended_at": experience.ended_at,
+            "is_ongoing": experience.is_ongoing,
+        },
+    )

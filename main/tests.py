@@ -111,26 +111,48 @@ class MainTest(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, "experience.html")
-        self.assertContains(response, self.experience.title)
-        self.assertContains(response, self.experience.description)
-        self.assertContains(response, "Part-Time")
-        self.assertContains(response, "Sedang berlangsung")
         self.assertContains(response, f'href="{reverse("main:show_main")}"')
+
+        # Halaman daftar hanya kerangka; data diambil lewat endpoint JSON
+        self.assertContains(response, reverse("main:get_experiences_json"))
+        self.assertContains(response, 'id="loading"')
+        self.assertContains(response, 'id="error"')
+        self.assertContains(response, 'id="empty"')
+        self.assertContains(response, 'id="grid"')
+        self.assertNotContains(response, self.experience.title)
+
+    def test_experience_data_from_json_endpoint(self):
+        response = self.client.get(reverse("main:get_experiences_json"))
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(len(payload), 1)
+
+        fields = payload[0]["fields"]
+        self.assertEqual(fields["title"], "Asisten Dosen PBP")
+        self.assertEqual(fields["description"], "Membantu mahasiswa memahami pengembangan web.")
+        self.assertEqual(fields["category_display"], "Part-Time")
+        self.assertEqual(fields["started_at"], "2024-01-15")
+        self.assertTrue(fields["is_ongoing"])
+        self.assertEqual(fields["star_count"], 0)
+        self.assertFalse(fields["is_starred"])
 
     def test_empty_experience_page(self):
         Experience.objects.all().delete()
         response = self.client.get(reverse("main:show_experience"))
 
         self.assertContains(response, "Belum ada pengalaman yang ditambahkan.")
+        self.assertEqual(self.client.get(reverse("main:get_experiences_json")).json(), [])
 
     def test_completed_experience(self):
         self.experience.ended_at = date(2025, 6, 30)
         self.experience.save()
-        response = self.client.get(reverse("main:show_experience"))
 
         self.assertFalse(self.experience.is_ongoing)
-        self.assertContains(response, "Selesai")
-        self.assertNotContains(response, "Sedang berlangsung")
+
+        fields = self.client.get(reverse("main:get_experiences_json")).json()[0]["fields"]
+        self.assertEqual(fields["ended_at"], "2025-06-30")
+        self.assertFalse(fields["is_ongoing"])
 
 
 class SkillTest(TestCase):
