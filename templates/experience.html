@@ -9,13 +9,26 @@
                 <p class="section-kicker">Perjalanan saya sejauh ini</p>
                 <h1>Experience</h1>
 
-                {% if perms.main.add_experience %}
-                    <p class="experience-list-actions">
-                        <a href="{% url 'main:create_experience' %}" class="button">
-                            Tambah Experience
-                        </a>
-                    </p>
-                {% endif %}
+                <div class="section-toolbar">
+                    {% if perms.main.add_experience %}
+                        <p class="experience-list-actions">
+                            <a href="{% url 'main:create_experience' %}" class="button">
+                                Tambah Experience
+                            </a>
+                        </p>
+                    {% endif %}
+
+                    <form id="experience-search-form" class="project-search">
+                        <input type="search"
+                               id="search-input"
+                               name="title"
+                               value="{{ title_query }}"
+                               placeholder="Cari berdasarkan judul pengalaman"
+                               class="project-search__input"
+                               aria-label="Cari berdasarkan judul pengalaman">
+                        <button type="submit" class="button">Cari</button>
+                    </form>
+                </div>
 
                 <!-- Loading State -->
                 <div id="loading" class="empty-state hide">
@@ -48,6 +61,7 @@
     const EDIT_EXPERIENCE_URL = "{% url 'main:edit_experience' '00000000-0000-0000-0000-000000000000' %}";
     const STAR_EXPERIENCE_URL = "{% url 'main:toggle_star_experience' '00000000-0000-0000-0000-000000000000' %}";
     const CSRF_TOKEN = "{{ csrf_token }}";
+    const SEARCH_PARAM = "title";
 
     // Hak akses
     const IS_AUTHENTICATED = "{{ user.is_authenticated|yesno:'true,false' }}" === "true";
@@ -62,6 +76,10 @@
     const emptyState = document.getElementById('empty');
     const emptyMessage = document.getElementById('empty-message');
     const gridContainer = document.getElementById('grid');
+    const searchForm = document.getElementById('experience-search-form');
+    const searchInput = document.getElementById('search-input');
+    const SEARCH_DEBOUNCE_DELAY = 300;
+    let searchDebounceTimer;
 
     // Menyembunyikan/menampilkan section halaman
     function displayPageSection({ showLoading = false, showError = false, showEmpty = false, showGrid = false }) {
@@ -182,14 +200,18 @@
     }
 
     // Fetch data pengalaman
-    async function fetchExperiences() {
+    async function fetchExperiences(searchQuery = "") {
+        const url = searchQuery
+            ? `${EXPERIENCES_ENDPOINT}?${SEARCH_PARAM}=${encodeURIComponent(searchQuery)}`
+            : EXPERIENCES_ENDPOINT;
+
         try {
             if (experiencesAbortController) experiencesAbortController.abort();
             experiencesAbortController = new AbortController();
 
             displayPageSection({ showLoading: true });
 
-            const response = await fetch(EXPERIENCES_ENDPOINT, {
+            const response = await fetch(url, {
                 headers: {
                     'Accept': 'application/json',
                     'X-CSRFToken': CSRF_TOKEN,
@@ -204,7 +226,9 @@
             gridContainer.innerHTML = '';
 
             if (experienceData.length === 0) {
-                emptyMessage.textContent = 'Belum ada pengalaman yang ditambahkan.';
+                emptyMessage.textContent = searchQuery
+                    ? 'Tidak ada pengalaman dengan judul tersebut.'
+                    : 'Belum ada pengalaman yang ditambahkan.';
                 displayPageSection({ showEmpty: true });
                 return;
             }
@@ -221,9 +245,25 @@
         }
     }
 
+    // Pencarian hanya mengirim request setelah pengguna berhenti mengetik
+    function searchExperiences() {
+        fetchExperiences(searchInput.value.trim());
+    }
+
+    searchInput.addEventListener("input", function () {
+        clearTimeout(searchDebounceTimer);
+        searchDebounceTimer = setTimeout(searchExperiences, SEARCH_DEBOUNCE_DELAY);
+    });
+
+    searchForm.addEventListener("submit", function (event) {
+        event.preventDefault();
+        clearTimeout(searchDebounceTimer);
+        searchExperiences();
+    });
+
     attachConfirmations(gridContainer);
 
     // Start application
-    fetchExperiences();
+    fetchExperiences(searchInput.value.trim());
     </script>
 {% endblock scripts %}

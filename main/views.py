@@ -44,6 +44,7 @@ def show_main(request):
 def show_experience(request):
     context = {
         "name": "Rania Fauziah Nur Wahyudi",
+        "title_query": request.GET.get("title", "").strip(),
     }
     return render(request, "experience.html", context)
 
@@ -373,7 +374,11 @@ def delete_experience(request, experience_id):
 
 
 def get_experiences_json(request):
+    title_query = request.GET.get("title", "").strip()
     experiences = Experience.objects.all()
+
+    if title_query:
+        experiences = experiences.filter(title__icontains=title_query)
 
     return build_json_payload(
         experiences,

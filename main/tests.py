@@ -154,6 +154,47 @@ class MainTest(TestCase):
         self.assertEqual(fields["ended_at"], "2025-06-30")
         self.assertFalse(fields["is_ongoing"])
 
+    def test_experience_json_search_by_title(self):
+        Experience.objects.create(
+            title="Staff OH Fasilkom",
+            description="Divisi Visual Design.",
+            category="part-time",
+            started_at=date(2025, 1, 15),
+        )
+
+        endpoint = reverse("main:get_experiences_json")
+
+        # Tanpa query: semua data
+        self.assertEqual(len(self.client.get(endpoint).json()), 2)
+
+        # Pencarian sebagian, tidak case-sensitive
+        for query in ["staff", "STAFF", "Fasilkom", "oh"]:
+            with self.subTest(query=query):
+                payload = self.client.get(endpoint, {"title": query}).json()
+                self.assertEqual(len(payload), 1)
+                self.assertEqual(payload[0]["fields"]["title"], "Staff OH Fasilkom")
+
+        # Hanya cocok sebagian, bukan harus utuh
+        self.assertEqual(len(self.client.get(endpoint, {"title": "asisten"}).json()), 1)
+
+        # Tidak ada hasil
+        self.assertEqual(self.client.get(endpoint, {"title": "tidak-ada-ini"}).json(), [])
+
+        # Query kosong diperlakukan seperti tanpa filter
+        self.assertEqual(len(self.client.get(endpoint, {"title": "   "}).json()), 2)
+
+        # Query dengan karakter khusus tidak memicu error
+        for query in ["%", "_", "<script>", "a&b"]:
+            with self.subTest(query=query):
+                self.assertEqual(self.client.get(endpoint, {"title": query}).status_code, 200)
+
+    def test_experience_page_prefills_search_from_query_param(self):
+        response = self.client.get(reverse("main:show_experience"), {"title": "asisten"})
+
+        self.assertContains(response, 'id="experience-search-form"')
+        self.assertContains(response, 'name="title"')
+        self.assertContains(response, 'value="asisten"')
+
 
 class SkillTest(TestCase):
     def setUp(self):
@@ -777,7 +818,7 @@ class TemplateFixTest(TestCase):
         )
 
     def test_social_links_are_absolute_urls(self):
-        """Cegah regresi: LinkedIn一度 tanpa https:// jadi tautan relatif mati."""
+        """Cegah regresi: LinkedIn tanpa https:// jadi tautan relatif mati."""
         response = self.client.get(reverse("main:show_main"))
         html = response.content.decode()
 
