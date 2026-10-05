@@ -1,6 +1,6 @@
-from django.forms import ModelForm, TextInput, Textarea, URLInput, NumberInput, Select
+from django.forms import ModelForm, TextInput, Textarea, URLInput, NumberInput, Select, DateInput
 
-from main.models import Skill, Achievement
+from main.models import Skill, Achievement, Experience
 
 class SkillForm(ModelForm):
     class Meta:
@@ -97,6 +97,62 @@ class AchievementForm(ModelForm):
                     "min": 2000,
                     "max": 2100,
 
+                }
+            )
+        }
+
+class ExperienceForm(ModelForm):
+    class Meta:
+        model = Experience
+        fields = [
+            "title",
+            "description",
+            "category",
+            "thumbnail",
+            "started_at",
+            "ended_at",
+        ]
+
+        labels = {
+            "title": "Judul Pengalaman",
+            "description": "Deskripsi",
+            "category": "Category",
+            "thumbnail": "Link Gambar",
+            "started_at": "Waktu Mulai",
+            "ended_at": "Waktu Berakhir",
+        }
+
+        widgets = {
+            "title": TextInput(
+                attrs={
+                    "placeholder": "Staff OH Fasilkom 2025",
+                    "maxlength": 255
+                }
+            ),
+
+            "description": Textarea(
+                attrs={
+                    "placeholder": "Menjadi staff divisi Visual Design"
+                }
+            ),
+
+            "category": Select(),
+
+            "thumbnail": URLInput(
+                attrs={
+                    "placeholder": "https://...",
+                }
+            ),
+
+            "started_at": DateInput(
+                attrs={
+                    "type": "date",
+                }
+            ),
+
+            "ended_at": DateInput(
+                attrs={
+                    "type": "date",
                 }
             )
         }
