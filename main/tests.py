@@ -196,6 +196,114 @@ class MainTest(TestCase):
         self.assertContains(response, 'value="asisten"')
 
 
+class ExperienceCreateAjaxTest(TestCase):
+    def setUp(self):
+        self.url = reverse("main:create_experience_ajax")
+        self.valid_payload = {
+            "title": "Staff OH Fasilkom",
+            "description": "Menjadi staff divisi Visual Design.",
+            "category": "part-time",
+            "thumbnail": "https://contoh.com/gambar.png",
+            "started_at": "2025-01-15",
+            "ended_at": "",
+        }
+
+        self.editor = User.objects.create_user("exp_editor", password="test12345")
+        group = Group.objects.create(name="Experience Editor")
+        group.permissions.set(
+            Permission.objects.filter(codename="add_experience")
+        )
+        self.editor.groups.add(group)
+
+        self.visitor = User.objects.create_user("exp_visitor", password="test12345")
+
+    def test_create_returns_201_and_saves(self):
+        self.client.force_login(self.editor)
+
+        response = self.client.post(self.url, self.valid_payload)
+
+        self.assertEqual(response.status_code, 201)
+        self.assertIn("pk", response.json())
+        experience = Experience.objects.get(title="Staff OH Fasilkom")
+        self.assertEqual(str(response.json()["pk"]), str(experience.id))
+        self.assertEqual(experience.category, "part-time")
+        self.assertIsNone(experience.ended_at)
+
+    def test_invalid_payload_returns_400_with_field_errors(self):
+        self.client.force_login(self.editor)
+
+        response = self.client.post(
+            self.url, {**self.valid_payload, "title": "", "started_at": ""}
+        )
+
+        self.assertEqual(response.status_code, 400)
+        errors = response.json()["errors"]
+        self.assertIn("title", errors)
+        self.assertIn("started_at", errors)
+        self.assertEqual(len(errors["title"]), 1)
+        self.assertEqual(Experience.objects.count(), 0)
+
+    def test_invalid_category_returns_400(self):
+        self.client.force_login(self.editor)
+
+        response = self.client.post(
+            self.url, {**self.valid_payload, "category": "bukan-pilihan"}
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("category", response.json()["errors"])
+        self.assertEqual(Experience.objects.count(), 0)
+
+    def test_anonymous_gets_403_json_not_redirect(self):
+        response = self.client.post(self.url, self.valid_payload)
+
+        self.assertEqual(response.status_code, 403)
+        self.assertIn("message", response.json())
+        self.assertEqual(Experience.objects.count(), 0)
+
+    def test_user_without_permission_gets_403_json(self):
+        self.client.force_login(self.visitor)
+
+        response = self.client.post(self.url, self.valid_payload)
+
+        self.assertEqual(response.status_code, 403)
+        self.assertIn("message", response.json())
+        self.assertEqual(Experience.objects.count(), 0)
+
+    def test_get_method_not_allowed(self):
+        self.client.force_login(self.editor)
+
+        self.assertEqual(self.client.get(self.url).status_code, 405)
+
+    def test_modal_only_rendered_for_user_with_permission(self):
+        # Tanpa izin tidak ada UI modal sama sekali.
+        # Endpoint AJAX tetap boleh muncul di HTML karena wewenang
+        # ditegakkan di dalam view (403), bukan dengan menyembunyikan URL.
+        anonymous_response = self.client.get(reverse("main:show_experience"))
+        self.assertNotContains(anonymous_response, 'id="add-experience-modal"')
+        self.assertNotContains(anonymous_response, 'id="experience-form"')
+        self.assertNotContains(anonymous_response, 'popovertarget="add-experience-modal"')
+
+        self.client.force_login(self.visitor)
+        visitor_response = self.client.get(reverse("main:show_experience"))
+        self.assertNotContains(visitor_response, 'id="add-experience-modal"')
+        self.assertNotContains(visitor_response, 'id="experience-form"')
+
+        self.client.force_login(self.editor)
+        editor_response = self.client.get(reverse("main:show_experience"))
+        self.assertContains(editor_response, 'id="add-experience-modal"')
+        self.assertContains(editor_response, 'id="experience-form"')
+        self.assertContains(editor_response, "csrfmiddlewaretoken")
+        self.assertContains(editor_response, self.url)
+        self.assertContains(editor_response, 'popovertarget="add-experience-modal"')
+
+    def test_ajax_endpoint_url_is_not_a_permission_boundary(self):
+        # Regression guard: URL tetap bisa dipanggil langsung,
+        # tetapi view harus menolak tanpa izin.
+        response = self.client.post(self.url, self.valid_payload)
+        self.assertEqual(response.status_code, 403)
+
+
 class SkillTest(TestCase):
     def setUp(self):
         self.skill = Skill.objects.create(

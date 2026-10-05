@@ -11,11 +11,12 @@
 
                 <div class="section-toolbar">
                     {% if perms.main.add_experience %}
-                        <p class="experience-list-actions">
-                            <a href="{% url 'main:create_experience' %}" class="button">
-                                Tambah Experience
-                            </a>
-                        </p>
+                        <button type="button"
+                                class="button skill-add-button"
+                                popovertarget="add-experience-modal">
+                            <span aria-hidden="true">+</span>
+                            Tambah Experience
+                        </button>
                     {% endif %}
 
                     <form id="experience-search-form" class="project-search">
@@ -50,12 +51,17 @@
             </div>
         </section>
     </main>
+
+    {% if perms.main.add_experience %}
+        {% include "components/experience_form_modal.html" %}
+    {% endif %}
 {% endblock content %}
 
 {% block scripts %}
     <script>
     // Konfigurasi
     const EXPERIENCES_ENDPOINT = "{% url 'main:get_experiences_json' %}";
+    const CREATE_EXPERIENCE_ENDPOINT = "{% url 'main:create_experience_ajax' %}";
     const DUMMY_UUID = '00000000-0000-0000-0000-000000000000';
     const DELETE_EXPERIENCE_URL = "{% url 'main:delete_experience' '00000000-0000-0000-0000-000000000000' %}";
     const EDIT_EXPERIENCE_URL = "{% url 'main:edit_experience' '00000000-0000-0000-0000-000000000000' %}";
@@ -78,6 +84,7 @@
     const gridContainer = document.getElementById('grid');
     const searchForm = document.getElementById('experience-search-form');
     const searchInput = document.getElementById('search-input');
+    const experienceForm = document.getElementById('experience-form');
     const SEARCH_DEBOUNCE_DELAY = 300;
     let searchDebounceTimer;
 
@@ -262,6 +269,89 @@
     });
 
     attachConfirmations(gridContainer);
+
+    // Menutup modal tambah pengalaman
+    function closeExperienceModal() {
+        const modal = document.getElementById('add-experience-modal');
+        if (modal) modal.hidePopover();
+    }
+
+    // Menampilkan pesan galat tingkat form (mis. 403 atau gagal konektivitas)
+    function renderFormLevelError(message) {
+        const node = document.getElementById('experience-form-error');
+        if (!node) return;
+        node.textContent = message || '';
+        node.classList.toggle('hide', !message);
+    }
+
+    // Menampilkan error validasi di dalam modal
+    function renderFormErrors(errors) {
+        if (experienceForm) {
+            experienceForm.querySelectorAll('.form-error').forEach(function (node) {
+                if (node.id !== 'experience-form-error') node.remove();
+            });
+        }
+
+        Object.entries(errors || {}).forEach(function ([fieldName, fieldErrors]) {
+            const field = experienceForm
+                ? experienceForm.querySelector(`[name="${fieldName}"]`)
+                : null;
+            const wrapper = field ? field.closest('.form-group') : null;
+            if (!wrapper) return;
+
+            fieldErrors.forEach(function (fieldError) {
+                const message = document.createElement('p');
+                message.className = 'form-error';
+                message.textContent = fieldError.message;
+                wrapper.appendChild(message);
+            });
+        });
+    }
+
+    // Mengirim data form tambah pengalaman ke server tanpa me-reload halaman
+    async function addExperience(event) {
+        event.preventDefault();
+        if (!experienceForm) return;
+
+        const submitButton = experienceForm.querySelector('button[type="submit"]');
+        submitButton.disabled = true;
+        renderFormLevelError('');
+
+        try {
+            const response = await fetch(CREATE_EXPERIENCE_ENDPOINT, {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-CSRFToken': CSRF_TOKEN,
+                },
+                body: new FormData(experienceForm),
+            });
+            const result = await response.json().catch(() => ({}));
+
+            if (response.ok) {
+                experienceForm.reset();
+                renderFormErrors({});
+                renderFormLevelError('');
+                closeExperienceModal();
+                fetchExperiences(searchInput.value.trim());
+            } else if (result.errors) {
+                renderFormErrors(result.errors);
+            } else {
+                renderFormLevelError(
+                    result.message || `Terjadi kesalahan (status ${response.status}).`
+                );
+            }
+        } catch (error) {
+            console.error('Error adding experience:', error);
+            renderFormLevelError('Tidak dapat terhubung ke server. Silakan coba lagi.');
+        } finally {
+            submitButton.disabled = false;
+        }
+    }
+
+    if (experienceForm) {
+        experienceForm.addEventListener('submit', addExperience);
+    }
 
     // Start application
     fetchExperiences(searchInput.value.trim());

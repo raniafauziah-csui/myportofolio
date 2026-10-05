@@ -45,6 +45,7 @@ def show_experience(request):
     context = {
         "name": "Rania Fauziah Nur Wahyudi",
         "title_query": request.GET.get("title", "").strip(),
+        "form": ExperienceForm(),
     }
     return render(request, "experience.html", context)
 
@@ -371,6 +372,31 @@ def delete_experience(request, experience_id):
         return redirect("main:show_experience")
 
     return redirect("main:show_experience")
+
+
+@require_POST
+def create_experience_ajax(request):
+    if not request.user.is_authenticated:
+        return JsonResponse(
+            {"message": "Silakan login terlebih dahulu."},
+            status=403,
+        )
+
+    if not request.user.has_perm("main.add_experience"):
+        return JsonResponse(
+            {"message": "Kamu tidak memiliki izin untuk menambahkan pengalaman."},
+            status=403,
+        )
+
+    form = ExperienceForm(request.POST)
+    if form.is_valid():
+        experience = form.save()
+        return JsonResponse(
+            {"message": "Pengalaman berhasil ditambahkan.", "pk": str(experience.id)},
+            status=201,
+        )
+
+    return JsonResponse({"errors": form.errors.get_json_data()}, status=400)
 
 
 def get_experiences_json(request):
