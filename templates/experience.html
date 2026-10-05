@@ -284,6 +284,14 @@
         node.classList.toggle('hide', !message);
     }
 
+    // Menggabungkan seluruh pesan validasi server menjadi satu kalimat
+    function flattenValidationErrors(errors) {
+        return Object.values(errors || {})
+            .flat()
+            .map(function (fieldError) { return fieldError.message; })
+            .join(' ');
+    }
+
     // Menampilkan error validasi di dalam modal
     function renderFormErrors(errors) {
         if (experienceForm) {
@@ -333,17 +341,33 @@
                 renderFormErrors({});
                 renderFormLevelError('');
                 closeExperienceModal();
+                showToast(
+                    'Berhasil',
+                    result.message || 'Pengalaman berhasil ditambahkan!',
+                    'success',
+                );
                 fetchExperiences(searchInput.value.trim());
             } else if (result.errors) {
                 renderFormErrors(result.errors);
-            } else {
-                renderFormLevelError(
-                    result.message || `Terjadi kesalahan (status ${response.status}).`
+                showToast(
+                    'Gagal menambahkan pengalaman',
+                    flattenValidationErrors(result.errors),
+                    'error',
                 );
+            } else {
+                const message = result.message
+                    || `Terjadi kesalahan (status ${response.status}).`;
+                renderFormLevelError(message);
+                showToast('Gagal menambahkan pengalaman', message, 'error');
             }
         } catch (error) {
             console.error('Error adding experience:', error);
             renderFormLevelError('Tidak dapat terhubung ke server. Silakan coba lagi.');
+            showToast(
+                'Gagal menambahkan pengalaman',
+                'Tidak dapat terhubung ke server. Silakan coba lagi.',
+                'error',
+            );
         } finally {
             submitButton.disabled = false;
         }
