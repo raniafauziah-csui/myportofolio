@@ -1066,9 +1066,11 @@ class AchievementApiTest(TestCase):
         )
 
         shared = {"name", "category", "category_display", "description", "icon_url",
-                  "star_count", "is_starred", "starred_by_names"}
+                  "star_count", "is_starred"}
         self.assertTrue(skill_fields.issuperset(shared))
         self.assertTrue(achievement_fields.issuperset(shared))
+        self.assertIn("starred_by_names", skill_fields)
+        self.assertNotIn("starred_by_names", achievement_fields)
 
 
 class TemplateFixTest(TestCase):

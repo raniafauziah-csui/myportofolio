@@ -75,29 +75,29 @@ def create_skill(request):
     }
     return render(request, "skills_form.html", context)
 
-def build_json_payload(queryset, request, extra_fields):
+def build_json_payload(queryset, request, extra_fields, include_starred_by_names=True):
     """Bentuk payload JSON untuk endpoint API.
 
-    Semua endpoint memakai bentuk yang sama: ``pk`` berisi primary key dan
-    ``fields`` berisi data objek. Ditambahkan ``category_display`` supaya
-    klien tidak perlu memetakan label kategori secara manual, plus informasi
-    star yang bergantung pada user yang sedang login.
+    ``pk`` berisi primary key dan ``fields`` berisi data objek. ``category_display``
+    dan informasi star disertakan agar klien dapat menampilkan label dan status
+    star. Nama pemberi star dapat dikecualikan untuk endpoint yang bersifat publik.
     """
     payload = []
     for obj in queryset.prefetch_related("starred_by"):
-        starred_users = obj.starred_by.all()
+        starred_users = list(obj.starred_by.all())
         is_starred = request.user in starred_users if request.user.is_authenticated else False
 
-        payload.append({
-            "pk": str(obj.pk),
-            "fields": {
-                **extra_fields(obj),
-                "category_display": obj.get_category_display(),
-                "star_count": starred_users.count(),
-                "is_starred": is_starred,
-                "starred_by_names": ", ".join(user.username for user in starred_users),
-            },
-        })
+        fields = {
+            **extra_fields(obj),
+            "category_display": obj.get_category_display(),
+            "star_count": len(starred_users),
+            "is_starred": is_starred,
+        }
+        if include_starred_by_names:
+            fields["starred_by_names"] = ", ".join(
+                user.username for user in starred_users
+            )
+        payload.append({"pk": str(obj.pk), "fields": fields})
 
     return JsonResponse(payload, safe=False)
 
@@ -158,7 +158,8 @@ def show_achievement(request):
     context = {
         "name": "Rania Fauziah Nur Wahyudi",
         "achievement_list": achievements,
-        "name_query": name_query
+        "name_query": name_query,
+        "form": AchievementForm(),
     }
     return render(request, "achievement.html", context)
 
@@ -196,6 +197,7 @@ def get_achievements_json(request):
             "icon_url": achievement.icon_url,
             "timestamp_achieved": achievement.timestamp_achieved,
         },
+        include_starred_by_names=False,
     )
 
 @editor_required("main.delete_achievement")
