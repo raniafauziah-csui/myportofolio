@@ -8,28 +8,26 @@
             class="skill-form-modal__backdrop"
             popovertarget="add-experience-modal"
             popovertargetaction="hide"
-            aria-label="Tutup form tambah pengalaman"></button>
+            aria-label="Tutup form pengalaman"></button>
 
     <div class="skill-form-modal__content">
         <button type="button"
                 class="skill-form-modal__close"
                 popovertarget="add-experience-modal"
                 popovertargetaction="hide"
-                aria-label="Tutup form tambah pengalaman">&times;</button>
+                aria-label="Tutup form pengalaman">&times;</button>
 
         <h2 id="add-experience-modal-title">Tambah Pengalaman Baru</h2>
         <form id="experience-form"
               method="post"
-              action="{% url 'main:create_experience' %}"
+              action="{% url 'api:experience-list' %}"
               class="skill-form">
             {% csrf_token %}
             {% for field in form %}
                 <div class="form-group">
                     <label for="{{ field.id_for_label }}">{{ field.label }}</label>
                     {{ field }}
-                    {% for error in field.errors %}
-                        <p class="form-error">{{ error }}</p>
-                    {% endfor %}
+                    <div class="form-error" data-field-error="{{ field.name }}"></div>
                 </div>
             {% endfor %}
             <p id="experience-form-error" class="form-error hide"></p>
@@ -38,7 +36,9 @@
                         class="button button-secondary"
                         popovertarget="add-experience-modal"
                         popovertargetaction="hide">Batal</button>
-                <button type="submit" class="button">Tambah Pengalaman</button>
+                <button type="submit" class="button" id="experience-form-submit">
+                    Tambah Pengalaman
+                </button>
             </div>
         </form>
     </div>

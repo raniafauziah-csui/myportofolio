@@ -113,8 +113,8 @@ class MainTest(TestCase):
         self.assertTemplateUsed(response, "experience.html")
         self.assertContains(response, f'href="{reverse("main:show_main")}"')
 
-        # Halaman daftar hanya kerangka; data diambil lewat endpoint JSON
-        self.assertContains(response, reverse("main:get_experiences_json"))
+        # Halaman daftar hanya kerangka; data diambil lewat endpoint API
+        self.assertContains(response, reverse("api:experience-list"))
         self.assertContains(response, 'id="loading"')
         self.assertContains(response, 'id="error"')
         self.assertContains(response, 'id="empty"')
@@ -372,7 +372,7 @@ class ExperienceCreateAjaxTest(TestCase):
         }
 
         self.editor = User.objects.create_user("exp_editor", password="test12345")
-        group = Group.objects.create(name="Experience Editor")
+        group = Group.objects.create(name="Editor")
         group.permissions.set(
             Permission.objects.filter(codename="add_experience")
         )
@@ -457,7 +457,7 @@ class ExperienceCreateAjaxTest(TestCase):
         self.assertContains(editor_response, 'id="add-experience-modal"')
         self.assertContains(editor_response, 'id="experience-form"')
         self.assertContains(editor_response, "csrfmiddlewaretoken")
-        self.assertContains(editor_response, self.url)
+        self.assertContains(editor_response, reverse("api:experience-list"))
         self.assertContains(editor_response, 'popovertarget="add-experience-modal"')
 
     def test_ajax_endpoint_url_is_not_a_permission_boundary(self):
@@ -485,7 +485,7 @@ class SkillTest(TestCase):
     def test_skill_page_embeds_skills_endpoint(self):
         response = self.client.get(reverse("main:show_skill"))
 
-        self.assertContains(response, f'"{reverse("main:get_skills_json")}"')
+        self.assertContains(response, f'"{reverse("api:skill-list")}"')
 
     def test_skill_data_appears_in_json_api(self):
         response = self.client.get(reverse("main:get_skills_json"))
@@ -560,8 +560,11 @@ class SkillTest(TestCase):
         declared = set(re.findall(r"\b(?:const|let)\s+([A-Z][A-Z0-9_]+)\s*=", script))
         used = extract_js_identifiers(script)
 
+        # Global bawaan browser yang memang bukan variabel yang perlu dideklarasikan.
+        builtin_globals = {"JSON", "URL"}
+
         self.assertTrue(used, "tidak ada identifier JS yang terdeteksi")
-        self.assertEqual(used - declared, set())
+        self.assertEqual(used - declared - builtin_globals, set())
 
     def test_dummy_uuid_is_ascii_so_url_substitution_works(self):
         """Cegah regresi: nol subscript (U+2080) bikin .replace() gagal diam-diam."""
@@ -671,18 +674,22 @@ class AuthorizationTest(TestCase):
         self.client.force_login(self.normal_user)
         response = self.client.get(reverse("main:show_skill"))
 
-        self.assertNotContains(response, "Tambah Skill")
+        self.assertNotContains(response, 'id="add-skill-button"')
+        self.assertNotContains(response, 'id="add-skill-modal"')
         self.assertContains(response, 'const CAN_ADD_SKILL = "false" === "true"')
         self.assertContains(response, 'const CAN_EDIT_SKILL = "false" === "true"')
         self.assertContains(response, 'const CAN_DELETE_SKILL = "false" === "true"')
 
-    def test_editor_sees_add_button_and_modal(self):
+    def test_editor_sees_edit_modal_but_not_add_or_delete_controls(self):
         self.client.force_login(self.editor)
         response = self.client.get(reverse("main:show_skill"))
 
-        self.assertContains(response, "Tambah Skill")
         self.assertContains(response, 'id="add-skill-modal"')
-        self.assertContains(response, 'const CAN_ADD_SKILL = "true" === "true"')
+        self.assertContains(response, 'id="skill-form"')
+        self.assertContains(response, 'const CAN_EDIT_SKILL = "true" === "true"')
+        self.assertContains(response, 'const CAN_ADD_SKILL = "false" === "true"')
+        self.assertContains(response, 'const CAN_DELETE_SKILL = "false" === "true"')
+        self.assertNotContains(response, 'id="add-skill-button"')
 
     def test_editor_can_create_skill(self):
         self.client.force_login(self.editor)

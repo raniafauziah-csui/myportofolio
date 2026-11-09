@@ -8,28 +8,26 @@
             class="project-form-modal__backdrop"
             popovertarget="add-skill-modal"
             popovertargetaction="hide"
-            aria-label="Tutup form tambah skill"></button>
+            aria-label="Tutup form skill"></button>
 
     <div class="skill-form-modal__content">
         <button type="button"
                 class="skill-form-modal__close"
                 popovertarget="add-skill-modal"
                 popovertargetaction="hide"
-                aria-label="Tutup form tambah skill">×</button>
+                aria-label="Tutup form skill">&times;</button>
 
         <h2 id="add-skill-modal-title">Tambah Skill Baru</h2>
         <form id="skill-form"
               method="post"
-              action="{% url 'main:create_skill' %}"
+              action="{% url 'api:skill-list' %}"
               class="skill-form">
             {% csrf_token %}
             {% for field in form %}
                 <div class="form-group">
                     <label for="{{ field.id_for_label }}">{{ field.label }}</label>
                     {{ field }}
-                    {% for error in field.errors %}
-                        <p class="form-error">{{ error }}</p>
-                    {% endfor %}
+                    <div class="form-error" data-field-error="{{ field.name }}"></div>
                 </div>
             {% endfor %}
             <div class="skill-form-modal__actions">
@@ -37,7 +35,9 @@
                         class="button button-secondary"
                         popovertarget="add-skill-modal"
                         popovertargetaction="hide">Batal</button>
-                <button type="submit" class="button">Tambah Skill</button>
+                <button type="submit" class="button" id="skill-form-submit">
+                    Tambah Skill
+                </button>
             </div>
         </form>
     </div>

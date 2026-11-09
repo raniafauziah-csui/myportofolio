@@ -10,7 +10,7 @@
                 <h1>Achievement</h1>
 
                 <div class="section-toolbar">
-                    {% if user.is_superuser %}
+                    {% if can_manage %}
                         <button type="button" class="button"
                                 id="add-achievement-button"
                                 popovertarget="achievement-form-modal">
@@ -42,7 +42,7 @@
             </div>
         </section>
     </main>
-    {% if user.is_superuser %}
+    {% if can_edit %}
         <div id="achievement-form-modal"
              class="skill-form-modal"
              popover="auto"
@@ -79,7 +79,9 @@
                 </form>
             </div>
         </div>
+    {% endif %}
 
+    {% if can_manage %}
         <div id="achievement-delete-modal"
              class="project-delete-modal"
              popover="auto"
@@ -117,6 +119,8 @@
         const STAR_ACHIEVEMENT_ENDPOINT = "{% url 'api:achievement-star' '00000000-0000-0000-0000-000000000000' %}";
         const IS_SUPERUSER = "{{ user.is_superuser|yesno:'true,false' }}" === "true";
         const IS_AUTHENTICATED = "{{ user.is_authenticated|yesno:'true,false' }}" === "true";
+        const CAN_EDIT_ACHIEVEMENT = "{{ can_edit|yesno:'true,false' }}" === "true";
+        const CAN_MANAGE_ACHIEVEMENT = "{{ can_manage|yesno:'true,false' }}" === "true";
         const LOGIN_URL = "{% url 'main:login' %}";
         const CSRF_TOKEN = document.querySelector('[name=csrfmiddlewaretoken]').value;
 
@@ -174,7 +178,7 @@
             const image = achievement.icon_url
                 ? `<img src="${escapeHtml(achievement.icon_url)}" alt="Ikon ${escapeHtml(achievement.name)}" class="skill-image">`
                 : '';
-            const edit = IS_SUPERUSER
+            const edit = CAN_EDIT_ACHIEVEMENT
                 ? `<button type="button" class="button" data-action="edit"
                     data-id="${escapeHtml(achievement.id)}">Edit</button>`
                 : '';
@@ -185,7 +189,7 @@
                     <span aria-hidden="true">★</span> ${achievement.is_starred ? 'Unstar' : 'Star'}
                     <span class="star-count">${escapeHtml(achievement.star_count)}</span></button>`
                 : `<a href="${LOGIN_URL}" class="button">Login untuk memberi star (${escapeHtml(achievement.star_count)})</a>`;
-            const remove = IS_SUPERUSER
+            const remove = CAN_MANAGE_ACHIEVEMENT
                 ? `<button type="button" class="button button-danger" data-action="delete"
                     data-id="${escapeHtml(achievement.id)}">Hapus</button>`
                 : '';

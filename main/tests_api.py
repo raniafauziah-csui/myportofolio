@@ -360,6 +360,9 @@ class ExperienceAPITest(APITestCase):
                 self.client.delete(self.detail_url).status_code,
                 status.HTTP_403_FORBIDDEN,
             )
+        self.assertEqual(Experience.objects.count(), 1)
+        self.experience.refresh_from_db()
+        self.assertEqual(self.experience.title, "Research assistant")
 
     def test_owner_can_create_update_and_delete(self):
         self.client.force_authenticate(user=self.owner)
@@ -388,6 +391,15 @@ class ExperienceAPITest(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("title", response.data)
 
+    def test_session_write_without_csrf_is_rejected(self):
+        client = APIClient(enforce_csrf_checks=True)
+        self.assertTrue(client.login(
+            username="experience-owner", password="test-password",
+        ))
+        response = client.post(self.list_url, self.payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(Experience.objects.count(), 1)
+
     def test_editor_can_update_but_cannot_create_or_delete(self):
         self.visitor.groups.add(Group.objects.create(name="Editor"))
         self.client.force_authenticate(user=self.visitor)
@@ -404,6 +416,9 @@ class ExperienceAPITest(APITestCase):
             self.client.delete(self.detail_url).status_code,
             status.HTTP_403_FORBIDDEN,
         )
+        self.experience.refresh_from_db()
+        self.assertEqual(self.experience.title, "Changed")
+        self.assertEqual(Experience.objects.count(), 1)
 
     def test_star_requires_login_and_toggles(self):
         self.assertEqual(
@@ -478,6 +493,9 @@ class SkillAPITest(APITestCase):
                 self.client.delete(self.detail_url).status_code,
                 status.HTTP_403_FORBIDDEN,
             )
+        self.assertEqual(Skill.objects.count(), 1)
+        self.skill.refresh_from_db()
+        self.assertEqual(self.skill.name, "Figma")
 
     def test_owner_can_create_update_and_delete(self):
         self.client.force_authenticate(user=self.owner)
@@ -506,6 +524,15 @@ class SkillAPITest(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("name", response.data)
 
+    def test_session_write_without_csrf_is_rejected(self):
+        client = APIClient(enforce_csrf_checks=True)
+        self.assertTrue(client.login(
+            username="skill-owner", password="test-password",
+        ))
+        response = client.post(self.list_url, self.payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(Skill.objects.count(), 1)
+
     def test_editor_can_update_but_cannot_create_or_delete(self):
         self.visitor.groups.add(Group.objects.create(name="Editor"))
         self.client.force_authenticate(user=self.visitor)
@@ -522,6 +549,9 @@ class SkillAPITest(APITestCase):
             self.client.delete(self.detail_url).status_code,
             status.HTTP_403_FORBIDDEN,
         )
+        self.skill.refresh_from_db()
+        self.assertEqual(self.skill.name, "Changed")
+        self.assertEqual(Skill.objects.count(), 1)
 
     def test_star_requires_login_and_toggles(self):
         self.assertEqual(

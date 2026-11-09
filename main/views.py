@@ -25,6 +25,13 @@ def editor_required(perm):
         return _wrapped_view
     return decorator
 
+
+def can_edit_portfolio(user):
+    """Editor dan pemilik portofolio boleh mengubah data lewat API."""
+    return user.is_authenticated and (
+        user.is_superuser or user.groups.filter(name="Editor").exists()
+    )
+
 # Create your views here.
 def show_main(request):
     last_login = request.COOKIES.get('last_login', 'Belum ada sesi login / Cookie tidak ditemukan')
@@ -46,6 +53,8 @@ def show_experience(request):
         "name": "Rania Fauziah Nur Wahyudi",
         "title_query": request.GET.get("title", "").strip(),
         "form": ExperienceForm(),
+        "can_edit": can_edit_portfolio(request.user),
+        "can_manage": request.user.is_superuser,
     }
     return render(request, "experience.html", context)
 
@@ -55,7 +64,9 @@ def show_skill(request):
     context = {
         "name": "Rania Fauziah Nur Wahyudi",
         "name_query": name_query,
-        "form": SkillForm()
+        "form": SkillForm(),
+        "can_edit": can_edit_portfolio(request.user),
+        "can_manage": request.user.is_superuser,
     }
     return render(request, "skill.html", context)
 
@@ -160,6 +171,8 @@ def show_achievement(request):
         "achievement_list": achievements,
         "name_query": name_query,
         "form": AchievementForm(),
+        "can_edit": can_edit_portfolio(request.user),
+        "can_manage": request.user.is_superuser,
     }
     return render(request, "achievement.html", context)
 
