@@ -249,10 +249,27 @@ class AchievementAPITest(APITestCase):
         self.assertEqual(response.data["star_count"], 0)
         self.assertFalse(response.data["is_starred"])
 
-    def test_staff_and_editor_cannot_manage_achievements(self):
+    def test_editor_can_update_but_cannot_create_or_delete(self):
+        self.visitor.groups.add(Group.objects.create(name="Editor"))
+        self.client.force_authenticate(user=self.visitor)
+
+        response = self.client.patch(self.detail_url, {"name": "Changed"}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.achievement.refresh_from_db()
+        self.assertEqual(self.achievement.name, "Changed")
+
+        self.assertEqual(
+            self.client.post(self.list_url, self.payload, format="json").status_code,
+            status.HTTP_403_FORBIDDEN,
+        )
+        self.assertEqual(
+            self.client.delete(self.detail_url).status_code,
+            status.HTTP_403_FORBIDDEN,
+        )
+
+    def test_staff_without_editor_group_cannot_write(self):
         self.visitor.is_staff = True
         self.visitor.save()
-        self.visitor.groups.add(Group.objects.create(name="Editor"))
         self.client.force_authenticate(user=self.visitor)
         response = self.client.patch(self.detail_url, {"name": "Changed"}, format="json")
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
@@ -279,3 +296,241 @@ class AchievementAPITest(APITestCase):
             self.list_url, self.payload, format="json", HTTP_X_CSRFTOKEN=token,
         )
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+
+class ExperienceAPITest(APITestCase):
+    def setUp(self):
+        self.owner = User.objects.create_superuser(
+            username="experience-owner",
+            password="test-password",
+            email="experience-owner@example.com",
+        )
+        self.visitor = User.objects.create_user(
+            username="experience-visitor", password="test-password",
+        )
+        self.experience = Experience.objects.create(
+            title="Research assistant",
+            description="Worked in a lab",
+            category="research",
+            started_at="2025-01-15",
+        )
+        self.list_url = reverse("api:experience-list")
+        self.detail_url = reverse("api:experience-detail", args=[self.experience.id])
+        self.star_url = reverse("api:experience-star", args=[self.experience.id])
+        self.payload = {
+            "title": "Software engineer intern",
+            "description": "Built a web application",
+            "category": "internship",
+            "started_at": "2026-01-01",
+        }
+
+    def test_public_list_detail_and_search(self):
+        response = self.client.get(self.list_url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data[0]["id"], str(self.experience.id))
+        self.assertFalse(response.data[0]["is_starred"])
+        self.assertEqual(
+            self.client.get(self.detail_url).status_code, status.HTTP_200_OK,
+        )
+        self.assertEqual(
+            len(self.client.get(self.list_url, {"title": "RESEARCH"}).data), 1,
+        )
+        self.assertEqual(
+            self.client.get(self.list_url, {"title": "not-found"}).data, [],
+        )
+
+    def test_missing_experience_returns_404(self):
+        url = reverse("api:experience-detail", args=[uuid.uuid4()])
+        self.assertEqual(self.client.get(url).status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_guest_and_visitor_cannot_write(self):
+        for user in (None, self.visitor):
+            self.client.force_authenticate(user=user)
+            self.assertEqual(
+                self.client.post(self.list_url, self.payload, format="json").status_code,
+                status.HTTP_403_FORBIDDEN,
+            )
+            self.assertEqual(
+                self.client.patch(
+                    self.detail_url, {"title": "Changed"}, format="json",
+                ).status_code,
+                status.HTTP_403_FORBIDDEN,
+            )
+            self.assertEqual(
+                self.client.delete(self.detail_url).status_code,
+                status.HTTP_403_FORBIDDEN,
+            )
+
+    def test_owner_can_create_update_and_delete(self):
+        self.client.force_authenticate(user=self.owner)
+
+        response = self.client.post(self.list_url, self.payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        experience_id = response.data["id"]
+
+        detail_url = reverse("api:experience-detail", args=[experience_id])
+        response = self.client.patch(detail_url, {"title": "Changed"}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["description"], "Built a web application")
+
+        response = self.client.put(detail_url, self.payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        response = self.client.delete(detail_url)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertEqual(response.content, b"")
+
+    def test_invalid_experience_returns_400(self):
+        self.client.force_authenticate(user=self.owner)
+        response = self.client.post(
+            self.list_url, {**self.payload, "title": "   "}, format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("title", response.data)
+
+    def test_editor_can_update_but_cannot_create_or_delete(self):
+        self.visitor.groups.add(Group.objects.create(name="Editor"))
+        self.client.force_authenticate(user=self.visitor)
+
+        response = self.client.patch(
+            self.detail_url, {"title": "Changed"}, format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            self.client.post(self.list_url, self.payload, format="json").status_code,
+            status.HTTP_403_FORBIDDEN,
+        )
+        self.assertEqual(
+            self.client.delete(self.detail_url).status_code,
+            status.HTTP_403_FORBIDDEN,
+        )
+
+    def test_star_requires_login_and_toggles(self):
+        self.assertEqual(
+            self.client.post(self.star_url).status_code, status.HTTP_403_FORBIDDEN,
+        )
+        self.client.force_authenticate(user=self.visitor)
+        response = self.client.post(self.star_url)
+        self.assertTrue(response.data["is_starred"])
+        self.assertEqual(response.data["star_count"], 1)
+        response = self.client.post(self.star_url)
+        self.assertFalse(response.data["is_starred"])
+        self.assertEqual(response.data["star_count"], 0)
+
+
+class SkillAPITest(APITestCase):
+    def setUp(self):
+        self.owner = User.objects.create_superuser(
+            username="skill-owner",
+            password="test-password",
+            email="skill-owner@example.com",
+        )
+        self.visitor = User.objects.create_user(
+            username="skill-visitor", password="test-password",
+        )
+        self.skill = Skill.objects.create(
+            name="Figma",
+            description="Membuat desain poster",
+            category="design",
+        )
+        self.list_url = reverse("api:skill-list")
+        self.detail_url = reverse("api:skill-detail", args=[self.skill.id])
+        self.star_url = reverse("api:skill-star", args=[self.skill.id])
+        self.payload = {
+            "name": "Python",
+            "description": "Menulis kode backend",
+            "category": "programming",
+        }
+
+    def test_public_list_detail_and_search(self):
+        response = self.client.get(self.list_url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data[0]["id"], str(self.skill.id))
+        self.assertFalse(response.data[0]["is_starred"])
+        self.assertEqual(
+            self.client.get(self.detail_url).status_code, status.HTTP_200_OK,
+        )
+        self.assertEqual(
+            len(self.client.get(self.list_url, {"name": "FIG"}).data), 1,
+        )
+        self.assertEqual(
+            self.client.get(self.list_url, {"name": "not-found"}).data, [],
+        )
+
+    def test_missing_skill_returns_404(self):
+        url = reverse("api:skill-detail", args=[uuid.uuid4()])
+        self.assertEqual(self.client.get(url).status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_guest_and_visitor_cannot_write(self):
+        for user in (None, self.visitor):
+            self.client.force_authenticate(user=user)
+            self.assertEqual(
+                self.client.post(self.list_url, self.payload, format="json").status_code,
+                status.HTTP_403_FORBIDDEN,
+            )
+            self.assertEqual(
+                self.client.patch(
+                    self.detail_url, {"name": "Changed"}, format="json",
+                ).status_code,
+                status.HTTP_403_FORBIDDEN,
+            )
+            self.assertEqual(
+                self.client.delete(self.detail_url).status_code,
+                status.HTTP_403_FORBIDDEN,
+            )
+
+    def test_owner_can_create_update_and_delete(self):
+        self.client.force_authenticate(user=self.owner)
+
+        response = self.client.post(self.list_url, self.payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        skill_id = response.data["id"]
+
+        detail_url = reverse("api:skill-detail", args=[skill_id])
+        response = self.client.patch(detail_url, {"name": "Changed"}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["description"], "Menulis kode backend")
+
+        response = self.client.put(detail_url, self.payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        response = self.client.delete(detail_url)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertEqual(response.content, b"")
+
+    def test_invalid_skill_returns_400(self):
+        self.client.force_authenticate(user=self.owner)
+        response = self.client.post(
+            self.list_url, {**self.payload, "name": "   "}, format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("name", response.data)
+
+    def test_editor_can_update_but_cannot_create_or_delete(self):
+        self.visitor.groups.add(Group.objects.create(name="Editor"))
+        self.client.force_authenticate(user=self.visitor)
+
+        response = self.client.patch(
+            self.detail_url, {"name": "Changed"}, format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            self.client.post(self.list_url, self.payload, format="json").status_code,
+            status.HTTP_403_FORBIDDEN,
+        )
+        self.assertEqual(
+            self.client.delete(self.detail_url).status_code,
+            status.HTTP_403_FORBIDDEN,
+        )
+
+    def test_star_requires_login_and_toggles(self):
+        self.assertEqual(
+            self.client.post(self.star_url).status_code, status.HTTP_403_FORBIDDEN,
+        )
+        self.client.force_authenticate(user=self.visitor)
+        response = self.client.post(self.star_url)
+        self.assertTrue(response.data["is_starred"])
+        self.assertEqual(response.data["star_count"], 1)
+        response = self.client.post(self.star_url)
+        self.assertFalse(response.data["is_starred"])
+        self.assertEqual(response.data["star_count"], 0)
