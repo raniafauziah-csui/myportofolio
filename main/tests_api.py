@@ -3,9 +3,123 @@ import uuid
 from django.contrib.auth.models import Group, User
 from django.urls import reverse
 from rest_framework import status
-from rest_framework.test import APIClient, APITestCase
+from rest_framework.test import APIClient, APIRequestFactory, APITestCase
 
-from main.models import Achievement
+from main.models import Achievement, Experience, Skill
+from main.serializers import (
+    AchievementSerializer, ExperienceSerializer, SkillSerializer,
+)
+
+
+class ModelSerializerTest(APITestCase):
+    def test_all_serializers_expose_computed_star_fields_without_account_data(self):
+        user = User.objects.create_user(
+            username="starred-user",
+            password="test-password",
+            email="private@example.com",
+        )
+        objects_and_serializers = [
+            (
+                Achievement.objects.create(
+                    name="Hackathon",
+                    category="hackathon",
+                    description="Built an app",
+                    position="Winner",
+                    timestamp_achieved=2025,
+                ),
+                AchievementSerializer,
+            ),
+            (
+                Experience.objects.create(
+                    title="Research assistant",
+                    description="Worked in a lab",
+                    category="research",
+                    started_at="2025-01-15",
+                ),
+                ExperienceSerializer,
+            ),
+            (
+                Skill.objects.create(
+                    name="Python",
+                    category="programming",
+                    description="Application development",
+                ),
+                SkillSerializer,
+            ),
+        ]
+        request = APIRequestFactory().get("/")
+        request.user = user
+
+        for obj, serializer_class in objects_and_serializers:
+            obj.starred_by.add(user)
+            serializer = serializer_class(obj, context={"request": request})
+            data = serializer.data
+
+            self.assertNotEqual(serializer_class.Meta.fields, "__all__")
+            self.assertEqual(data["star_count"], 1)
+            self.assertTrue(data["is_starred"])
+            self.assertTrue(serializer.fields["star_count"].read_only)
+            self.assertTrue(serializer.fields["is_starred"].read_only)
+            self.assertNotIn("email", data)
+            self.assertNotIn("password", data)
+
+    def test_experience_serializer_uses_experience_fields(self):
+        experience = Experience.objects.create(
+            title="Research assistant",
+            description="Worked in a lab",
+            category="research",
+            started_at="2025-01-15",
+        )
+
+        data = ExperienceSerializer(experience).data
+
+        self.assertEqual(data["title"], "Research assistant")
+        self.assertEqual(data["started_at"], "2025-01-15")
+        self.assertIsNone(data["ended_at"])
+        self.assertTrue(data["is_ongoing"])
+        self.assertEqual(data["star_count"], 0)
+        self.assertNotIn("position", data)
+        self.assertNotIn("timestamp_achieved", data)
+
+    def test_experience_serializer_sanitizes_title_and_description(self):
+        serializer = ExperienceSerializer(data={
+            "title": "<b>Research assistant</b>",
+            "description": "<p>Worked in a lab</p>",
+            "category": "research",
+            "started_at": "2025-01-15",
+        })
+
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        self.assertEqual(serializer.validated_data["title"], "Research assistant")
+        self.assertEqual(serializer.validated_data["description"], "Worked in a lab")
+
+    def test_skill_serializer_uses_skill_fields(self):
+        skill = Skill.objects.create(
+            name="Python",
+            category="programming",
+            description="Application development",
+        )
+
+        data = SkillSerializer(skill).data
+
+        self.assertEqual(data["name"], "Python")
+        self.assertEqual(data["category"], "programming")
+        self.assertEqual(data["star_count"], 0)
+        self.assertNotIn("position", data)
+        self.assertNotIn("timestamp_created", data)
+
+    def test_skill_serializer_sanitizes_name_and_description(self):
+        serializer = SkillSerializer(data={
+            "name": "<b>Python</b>",
+            "category": "programming",
+            "description": "<p>Application development</p>",
+        })
+
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        self.assertEqual(serializer.validated_data["name"], "Python")
+        self.assertEqual(
+            serializer.validated_data["description"], "Application development",
+        )
 
 
 class AchievementAPITest(APITestCase):
