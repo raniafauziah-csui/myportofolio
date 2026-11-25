@@ -71,20 +71,30 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'corsheaders',
     'main',
     "rest_framework",
+    "rest_framework.authtoken",
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework.authentication.TokenAuthentication",
+        "rest_framework.authentication.SessionAuthentication",
+    ],
+}
 
 ROOT_URLCONF = 'portofolio.urls'
 
@@ -115,7 +125,18 @@ WSGI_APPLICATION = 'portofolio.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
+# Local development CORS settings for Flutter Web (Chrome).
+# Uses the `PRODUCTION` flag from `.env` / `.env.prod` (Tutorial 00/01):
+# allow all origins locally (`PRODUCTION=False`), and restrict in production.
+# In production (.env.prod), set CORS_ALLOWED_ORIGINS="https://your-web-app.example"
+# (only needed if you host Flutter Web; native Android apps do not use CORS).
+CORS_ALLOW_ALL_ORIGINS = not PRODUCTION
 if PRODUCTION:
+    CORS_ALLOWED_ORIGINS = [
+        origin.strip()
+        for origin in os.getenv("CORS_ALLOWED_ORIGINS", "").split(",")
+        if origin.strip()
+    ]
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.postgresql',
